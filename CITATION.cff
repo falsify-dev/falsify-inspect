@@ -9,7 +9,7 @@ abstract: >-
 authors:
   - family-names: "Öztürk"
     given-names: "Cüneyt"
-    affiliation: "Cüneyt Öztürk"
+    affiliation: "Independent"
     email: "hello@falsify.dev"
 type: software
 license: MIT
