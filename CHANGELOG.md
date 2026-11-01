@@ -2,6 +2,11 @@
 
 All notable changes to `falsify-inspect` are documented here.
 
+## [0.4.2] — 2026-11-02
+
+### Changed
+- Repository links in package metadata and docs point to the `falsify-dev` GitHub organisation. No behaviour change.
+
 ## [0.4.1] — 2026-10-28
 
 ### Fixed
