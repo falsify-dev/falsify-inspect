@@ -2,6 +2,17 @@
 
 All notable changes to `falsify-inspect` are documented here.
 
+## [0.4.3] — 2026-11-09
+
+### Fixed
+- **A fresh `pip install "falsify-inspect[inspect]"` could not run any eval.**
+  inspect_ai 0.3.288 imports `acp.helpers`, which agent-client-protocol 1.0.0
+  (released after it) no longer ships, so `eval()` failed with
+  `ModuleNotFoundError: No module named 'acp.helpers'` before our hook ran.
+  The `inspect` extra now pins `agent-client-protocol<1.0`. Upstream report:
+  UKGovernmentBEIS/inspect_ai#6417. The pin will be dropped once inspect_ai
+  ships a fix. No change to the adapter code.
+
 ## [0.4.2] — 2026-11-02
 
 ### Changed

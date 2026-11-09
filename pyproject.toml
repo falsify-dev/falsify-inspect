@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "falsify-inspect"
-version = "0.4.2"
+version = "0.4.3"
 description = "PRML v0.1 pre-registration integration for Inspect AI eval logs"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -31,7 +31,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-inspect = ["inspect_ai>=0.3.0"]
+# agent-client-protocol<1.0: inspect_ai 0.3.288 imports acp.helpers, which
+# agent-client-protocol 1.0.0 removed, so a fresh install cannot run any eval
+# (UKGovernmentBEIS/inspect_ai#6417). Drop once inspect_ai ships a fix.
+inspect = ["inspect_ai>=0.3.0", "agent-client-protocol<1.0"]
 dev = ["pytest>=7.0", "pytest-cov>=4.0"]
 
 [project.urls]
