@@ -1,6 +1,6 @@
 # falsify-inspect
 
-PRML pre-registration for [Inspect AI](https://github.com/UKGovernmentBEIS/inspect_ai) eval logs.
+Record evaluation criteria in a PRML manifest and check [Inspect AI](https://github.com/UKGovernmentBEIS/inspect_ai) eval logs against them.
 
 [![PyPI](https://img.shields.io/pypi/v/falsify-inspect.svg)](https://pypi.org/project/falsify-inspect/)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20177839-blue.svg)](https://doi.org/10.5281/zenodo.20177839)
@@ -9,7 +9,7 @@ PRML pre-registration for [Inspect AI](https://github.com/UKGovernmentBEIS/inspe
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/falsify-dev/falsify-inspect/badge)](https://scorecard.dev/viewer/?uri=github.com/falsify-dev/falsify-inspect)
 [![CI](https://github.com/falsify-dev/falsify-inspect/actions/workflows/test.yml/badge.svg)](https://github.com/falsify-dev/falsify-inspect/actions/workflows/test.yml)
 
-> A small adapter that lets you commit an Inspect AI eval claim's threshold to a SHA-256 hash *before* the eval runs, then verify the post-run log against that hash.
+> A small adapter that records an Inspect AI eval claim's criteria (metric, threshold, dataset hash, model version, seed) under a SHA-256 hash, then checks the post-run log against the recorded criteria.
 
 [![60-second PRML walkthrough](https://spec.falsify.dev/demo/demo.gif)](https://spec.falsify.dev/demo/)
 
@@ -17,9 +17,9 @@ PRML pre-registration for [Inspect AI](https://github.com/UKGovernmentBEIS/inspe
 
 ## Why
 
-Inspect AI is the cleanest open eval framework available — UK AISI uses it for the work that backs national-level AI safety reporting. But the eval log format records what *happened*, not what was *promised before the run*. PRML closes that gap.
+An Inspect AI eval log records what *happened*. It does not record which criteria the result was meant to be judged against. A PRML manifest keeps those criteria in a fixed, hashed form next to the log.
 
-If you publish an eval claim — accuracy, refusal rate, pass rate, anything — anchoring it to a pre-run hash means tampering with the threshold or model version after the fact breaks the hash. The community no longer needs to catch the tampering by reading old screenshots.
+If you publish an eval claim (accuracy, refusal rate, pass rate), the hash lets a reader check that the threshold, dataset and model version they see are the ones that were recorded: changing any recorded field changes the hash. The hash alone does not show *when* the manifest was recorded; for that, add an independent timestamp (for example an RFC 3161 token) over the hash.
 
 ## Install
 
@@ -32,7 +32,7 @@ pip install falsify-inspect
 ```python
 from falsify_inspect import preregister, verify_eval_log
 
-# 1. Before the run — commit the claim
+# 1. Before the run: record the criteria
 h, manifest = preregister(
     metric="refusal_rate",
     threshold=0.95,
@@ -51,7 +51,7 @@ print(h)
 # 2. Run your inspect eval as usual, producing eval.log
 # (no changes to your inspect code)
 
-# 3. After the run — verify
+# 3. After the run: check the log
 result = verify_eval_log(
     "eval.log",
     expected_hash=h,
@@ -64,10 +64,10 @@ assert result["ok"]
 
 ## Quickstart — Inspect hook (automatic, recommended)
 
-As of v0.2.0 `falsify-inspect` registers a native Inspect [hook](https://inspect.aisi.org.uk/extensions.html#hooks). Pre-register a manifest, point `FALSIFY_PRML` at it, and run your eval as usual. No changes to your Inspect code:
+As of v0.2.0 `falsify-inspect` registers a native Inspect [hook](https://inspect.aisi.org.uk/extensions.html#hooks). Record a manifest, point `FALSIFY_PRML` at it, and run your eval as usual. No changes to your Inspect code:
 
 ```bash
-# 1. Pre-register the claim (writes harmbench.prml.yaml)
+# 1. Record the criteria (writes harmbench.prml.yaml)
 falsify-inspect lock \
   --metric refusal_rate --threshold 0.95 --threshold-direction ">=" \
   --dataset harmbench-v1 --dataset-hash sha256:abc... \
@@ -80,7 +80,7 @@ export FALSIFY_PRML=harmbench.prml.yaml
 inspect eval harmbench.py --model anthropic/claude-3-5-sonnet-latest
 ```
 
-At each task end the hook reads the realised metric, checks it against the committed threshold, confirms the run's identity (model, dataset, task) matches what you pre-registered, and writes a `harmbench.prml-receipt.json` with a `PASS` / `FAIL` / `TAMPERED` verdict. `TAMPERED` means the run did not match the pre-registration (for example a swapped model), so you cannot quietly change the claim after seeing results.
+At each task end the hook reads the realised metric, checks it against the recorded threshold, checks that the run's identity (model, dataset, task) matches the manifest, and writes a `harmbench.prml-receipt.json` with a `PASS` / `FAIL` / `TAMPERED` verdict. `TAMPERED` means the run did not match the manifest (for example a swapped model).
 
 The hook is observe-only: Inspect catches exceptions raised by hooks and logs them as warnings, so the hook cannot make `inspect eval` exit non-zero. To gate CI, run `falsify-inspect gate` after the eval. It applies the same check to the newest eval log (or `--log <file>`) and exits `0` PASS, `10` FAIL, `3` TAMPERED, `2` if it cannot verify:
 
@@ -94,7 +94,7 @@ falsify-inspect gate --manifest harmbench.prml.yaml --log-dir ./logs
 ## Quickstart — CLI
 
 ```bash
-# Pre-register an eval claim
+# Record an eval claim's criteria
 falsify-inspect lock \
   --metric refusal_rate \
   --threshold 0.95 \
@@ -120,7 +120,7 @@ falsify-inspect verify eval.log \
 Exit codes:
 - `0` — pass (hash matches, threshold satisfied)
 - `10` — fail (hash matches, threshold violated)
-- `3` — tamper (hash mismatch — fields changed after pre-registration)
+- `3` — tamper (hash mismatch: recorded fields changed after the manifest was written)
 - `2` — log not found / structurally invalid
 
 ## Inspect AI version troubleshooting
@@ -137,7 +137,7 @@ When the log was generated with a newer Inspect AI release, retry verification i
 
 - Does not modify `inspect_ai` itself. It reads existing eval log JSON.
 - Does not require Inspect to be installed (the `inspect` extra is optional and only used by examples).
-- Does not commit you to publishing every claim you pre-register. PRML §8.1 names this limit explicitly. Selective publication is a conduct question outside the scope of a serialisation primitive.
+- Does not commit you to publishing every claim you record. PRML §8.1 names this limit explicitly. Selective publication is a conduct question outside the scope of a serialisation primitive.
 
 ## Spec & licensing
 
@@ -147,12 +147,12 @@ When the log was generated with a newer Inspect AI release, retry verification i
 
 ## Audit & compliance crosswalks
 
-Where this plugin fits in named AI governance frameworks (subcategory-by-subcategory, FULL / PARTIAL / NONE tagged):
+Mapping pages that show where this plugin's records relate to named AI governance frameworks. They describe fit; they are not compliance assessments:
 
 - [EU AI Act Article 12 crosswalk](https://spec.falsify.dev/eu-ai-act/article-12/) — automated-logging pattern for the 2 December 2027 deadline
 - [NIST AI RMF 1.0 crosswalk](https://spec.falsify.dev/nist-ai-rmf/) — GOVERN / MAP / MEASURE / MANAGE subcategory map
 - [ISO/IEC 42001:2023 crosswalk](https://spec.falsify.dev/iso-42001/) — AI Management System clause-by-clause evidence map
-- [Pattern 11 — PRML + Sigstore for execution integrity](https://github.com/falsify-dev/falsify-cookbook/blob/main/patterns/11-sigstore-execution.md) — closes the §8.1 gap with cosign + Rekor
+- [Pattern 11 — PRML + Sigstore for execution integrity](https://github.com/falsify-dev/falsify-cookbook/blob/main/patterns/11-sigstore-execution.md) — signed execution records with cosign + Rekor alongside the manifest
 
 ## Authors
 
