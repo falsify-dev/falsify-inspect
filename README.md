@@ -125,7 +125,7 @@ Exit codes:
 
 ## Inspect AI version troubleshooting
 
-`falsify-inspect` 0.1.x supports the Inspect AI eval log shape produced by `inspect_ai>=0.3.0`, which is the version range installed by the optional `inspect` extra. If `falsify-inspect verify` reports that a log is structurally invalid, cannot find the expected score/metadata fields, or raises a parsing error immediately after an Inspect AI upgrade, first confirm that the package versions are in sync:
+`falsify-inspect` reads the Inspect AI eval log shape produced by `inspect_ai>=0.3.0`. The optional `inspect` extra installs `inspect_ai>=0.3.289`, because earlier releases cannot run an eval next to agent-client-protocol 1.0 (UKGovernmentBEIS/inspect_ai#6417). If `falsify-inspect verify` reports that a log is structurally invalid, cannot find the expected score/metadata fields, or raises a parsing error immediately after an Inspect AI upgrade, first confirm that the package versions are in sync:
 
 ```bash
 python -m pip show falsify-inspect inspect_ai

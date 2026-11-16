@@ -2,6 +2,19 @@
 
 All notable changes to `falsify-inspect` are documented here.
 
+## [0.4.4] — 2026-11-16
+
+### Changed
+- **The `inspect` extra now requires `inspect_ai>=0.3.289` and no longer pins
+  `agent-client-protocol<1.0`.** inspect_ai 0.3.289 (10 Nov 2026) replaced its
+  `acp.helpers` imports with its own builders and works with
+  agent-client-protocol 0.12 and 1.0; the weekly canary passed with
+  inspect_ai 0.3.290 and agent-client-protocol 1.0.0 on 16 Nov 2026. Earlier
+  inspect_ai releases still fail with agent-client-protocol 1.0.0, so the
+  lower bound moves instead of the pin simply being dropped. The adapter still
+  reads eval logs written by older inspect_ai versions. No change to the
+  adapter code.
+
 ## [0.4.3] — 2026-11-09
 
 ### Fixed
