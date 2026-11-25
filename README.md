@@ -82,7 +82,7 @@ inspect eval harmbench.py --model anthropic/claude-3-5-sonnet-latest
 
 At each task end the hook reads the realised metric, checks it against the recorded threshold, checks that the run's identity (model, dataset, task) matches the manifest, and writes a `harmbench.prml-receipt.json` with a `PASS` / `FAIL` / `TAMPERED` verdict. `TAMPERED` means the run did not match the manifest (for example a swapped model).
 
-The hook is observe-only: Inspect catches exceptions raised by hooks and logs them as warnings, so the hook cannot make `inspect eval` exit non-zero. To gate CI, run `falsify-inspect gate` after the eval. It applies the same check to the newest eval log (or `--log <file>`) and exits `0` PASS, `10` FAIL, `3` TAMPERED, `2` if it cannot verify:
+The hook is observe-only: Inspect catches exceptions raised by hooks and logs them as warnings, so the hook cannot make `inspect eval` exit non-zero. To gate CI, run `falsify-inspect gate` after the eval. It applies the same check to the newest eval log (or `--log <file>`) and exits `0` PASS, `10` FAIL, `3` TAMPERED, `2` if it cannot verify (including a manifest the reference implementation rejects):
 
 ```bash
 inspect eval harmbench.py --model anthropic/claude-3-5-sonnet-latest

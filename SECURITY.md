@@ -51,8 +51,8 @@ get backported patches only for high-severity issues.
 
 | Version | Supported |
 |---|---|
-| 0.4.x | ✅ |
-| < 0.1 | ❌ |
+| 0.5.x | ✅ |
+| 0.4.x and earlier | ❌ (read manifests with `yaml.safe_load`, not the reference reader; upgrade) |
 
 ## Cryptographic claims
 
