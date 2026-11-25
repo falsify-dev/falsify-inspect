@@ -69,6 +69,17 @@ def test_gate_pass_fail_tampered(tmp_path, log_dir):
     assert _gate(tmp_path / "tamper.prml.yaml", log_dir) == 3
 
 
+def test_gate_rejected_manifest_exits_2(tmp_path, log_dir):
+    # A manifest the reference reader rejects (a repeated key) is not verified.
+    path = tmp_path / "rejected.prml.yaml"
+    _lock(path, 0.75, MODEL)
+    lines = path.read_text(encoding="utf-8").split("\n")
+    i = next(k for k, l in enumerate(lines) if l.startswith("threshold:"))
+    lines.insert(i, "threshold: 0.5")
+    path.write_text("\n".join(lines), encoding="utf-8")
+    assert _gate(path, log_dir) == 2
+
+
 def test_gate_cannot_verify(tmp_path):
     _lock(tmp_path / "pass.prml.yaml", 0.75, MODEL)
     empty = tmp_path / "empty"

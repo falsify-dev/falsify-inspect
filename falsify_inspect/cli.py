@@ -85,12 +85,15 @@ def _cmd_gate(args: argparse.Namespace) -> int:
     except ImportError:
         sys.stderr.write("gate needs inspect_ai: pip install 'falsify-inspect[inspect]'\n")
         return 2
-    from falsify_inspect.core import load_committed_manifest, verify_live
+    from falsify_inspect.core import MalformedLogError, load_committed_manifest, verify_live
 
     try:
         committed, _ = load_committed_manifest(args.manifest)
     except FileNotFoundError:
         sys.stderr.write(f"manifest not found: {args.manifest}\n")
+        return 2
+    except MalformedLogError as exc:
+        sys.stderr.write(f"manifest rejected, not verified: {exc}\n")
         return 2
     metric = committed.get("metric")
     if not metric:

@@ -296,3 +296,59 @@ def test_verify_eval_log_missing_dataset_hash_errors(tmp_path: Path):
             dataset="d", metric="accuracy", model_version="m", seed=1,
          claim_id=m.claim_id,
     )
+
+
+# The committed manifest is read the way the reference implementation reads it
+# (falsify_prml.load_manifest + validate_manifest): a file `falsify hash` rejects
+# raises MalformedLogError instead of producing a hash or a verdict.
+_REPO = Path(__file__).resolve().parent.parent
+
+
+def _committed(tmp_path):
+    path = tmp_path / "claim.prml.yaml"
+    h, _ = preregister(metric="accuracy", threshold=0.9, threshold_direction=">=",
+                       dataset="ds", dataset_hash=HEX, model_version="m", seed=42,
+                       output_path=str(path))
+    return path, h
+
+
+def _insert_above(path, key, line):
+    lines = path.read_text(encoding="utf-8").split("\n")
+    i = next(k for k, l in enumerate(lines) if l.startswith(key + ":"))
+    lines.insert(i, line)
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def test_load_matches_reference_reader(tmp_path):
+    from falsify_inspect import load_committed_manifest
+    path, h = _committed(tmp_path)
+    fields, got = load_committed_manifest(path)
+    assert got == h == prml.manifest_hash(prml.load_manifest(str(path)))
+
+
+def test_repeated_key_is_rejected_not_hashed(tmp_path):
+    from falsify_inspect import load_committed_manifest
+    from falsify_inspect.core import verify_live
+    path, _ = _committed(tmp_path)
+    _insert_above(path, "threshold", "threshold: 0.5")
+    with pytest.raises(MalformedLogError, match="duplicate key"):
+        load_committed_manifest(path)
+    with pytest.raises(MalformedLogError):
+        verify_live(manifest_path=str(path), observed_value=0.6)
+
+
+def test_anchor_is_rejected(tmp_path):
+    from falsify_inspect import load_committed_manifest
+    path, _ = _committed(tmp_path)
+    _insert_above(path, "threshold", "notes: &n x")
+    with pytest.raises(MalformedLogError, match="anchors and aliases"):
+        load_committed_manifest(path)
+
+
+def test_repo_examples_hash_as_the_reference_does():
+    from falsify_inspect import load_committed_manifest
+    examples = sorted(_REPO.glob("examples/**/*.prml.yaml"))
+    assert examples
+    for p in examples:
+        _, got = load_committed_manifest(p)
+        assert got == prml.manifest_hash(prml.load_manifest(str(p))), p

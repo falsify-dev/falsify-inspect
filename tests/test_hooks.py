@@ -193,3 +193,38 @@ def test_hook_disabled_without_env(monkeypatch):
 
     monkeypatch.delenv("FALSIFY_PRML", raising=False)
     assert FalsifyHooks().enabled() is False
+
+
+def _repeat_threshold(path):
+    lines = path.read_text(encoding="utf-8").split("\n")
+    i = next(k for k, l in enumerate(lines) if l.startswith("threshold:"))
+    lines.insert(i, "threshold: 0.5")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def test_hook_rejected_manifest_logs_error_and_writes_no_receipt(tmp_path, monkeypatch, caplog):
+    pytest.importorskip("inspect_ai")
+    from falsify_inspect.hooks import FalsifyHooks
+
+    path, _ = _make_manifest(tmp_path)
+    _repeat_threshold(path)
+    monkeypatch.setenv("FALSIFY_PRML", str(path))
+    monkeypatch.delenv("FALSIFY_PRML_STRICT", raising=False)
+    monkeypatch.chdir(tmp_path)
+    with caplog.at_level("ERROR"):
+        asyncio.run(FalsifyHooks().on_task_end(SimpleNamespace(log=_mock_log(value=0.90))))
+    assert any("rejected" in r.getMessage() and r.levelname == "ERROR" for r in caplog.records)
+    assert not (tmp_path / "mytask.prml-receipt.json").exists()
+
+
+def test_hook_rejected_manifest_raises_in_strict_mode(tmp_path, monkeypatch):
+    pytest.importorskip("inspect_ai")
+    from falsify_inspect.hooks import FalsifyHooks, FalsifyVerificationFailed
+
+    path, _ = _make_manifest(tmp_path)
+    _repeat_threshold(path)
+    monkeypatch.setenv("FALSIFY_PRML", str(path))
+    monkeypatch.setenv("FALSIFY_PRML_STRICT", "1")
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(FalsifyVerificationFailed, match="rejected"):
+        asyncio.run(FalsifyHooks().on_task_end(SimpleNamespace(log=_mock_log(value=0.90))))

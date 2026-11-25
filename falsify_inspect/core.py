@@ -33,7 +33,6 @@ from pathlib import Path
 from typing import Any
 
 import falsify_prml as _prml
-import yaml
 
 
 # -- Errors --------------------------------------------------------------------
@@ -438,16 +437,25 @@ def verify_eval_log(
 def load_committed_manifest(path: str | Path) -> tuple[dict[str, Any], str]:
     """Load a pre-registered ``.prml.yaml`` and return ``(fields, hash)``.
 
+    The manifest is read the way the reference implementation reads it
+    (``falsify_prml.load_manifest`` and ``falsify_prml.validate_manifest``), so
+    a file that ``falsify hash`` or ``falsify verify`` rejects raises
+    :class:`MalformedLogError` here instead of producing a hash.
+
     The committed hash is the *canonical* PRML hash of the parsed manifest
     (``falsify_prml.manifest_hash``), NOT a hash of the raw file bytes. This is
     the value :func:`preregister` returned at lock time and the value every PRML
     surface re-derives, so it is robust to incidental file reformatting.
     """
-    fields = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
-    if not isinstance(fields, dict):
-        raise MalformedLogError(
-            f"manifest at {path} did not parse to a mapping (got {type(fields).__name__})"
-        )
+    try:
+        fields = _prml.load_manifest(str(path))
+    except FileNotFoundError:
+        raise
+    except ValueError as exc:
+        raise MalformedLogError(f"manifest at {path} cannot be read: {exc}") from exc
+    errors = _prml.validate_manifest(fields)
+    if errors:
+        raise MalformedLogError(f"manifest at {path} is not a valid PRML manifest: {errors[0]}")
     committed_hash = _prml.manifest_hash(fields)
     return fields, committed_hash
 

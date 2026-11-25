@@ -34,7 +34,7 @@ from typing import Any
 
 from inspect_ai.hooks import Hooks, TaskEnd, hooks
 
-from falsify_inspect.core import verify_live
+from falsify_inspect.core import MalformedLogError, verify_live
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +131,12 @@ class FalsifyHooks(Hooks):
             verdict = verify_live(manifest_path=manifest_path, **live)
         except FileNotFoundError:
             logger.warning("PRML manifest not found at %s; skipping verification", manifest_path)
+            return
+        except MalformedLogError as exc:
+            # The reference reader rejects this file: report it as an error, not a verdict.
+            logger.error("PRML manifest %s rejected; run NOT verified: %s", manifest_path, exc)
+            if _strict():
+                raise FalsifyVerificationFailed(f"PRML manifest rejected: {exc}") from exc
             return
         except Exception as exc:  # never break a non-strict eval on our account
             logger.warning("PRML verification error (skipping): %s", exc, exc_info=True)
